@@ -1,6 +1,6 @@
 # WFC
 
-A simple (wave function collapse/model synthesis)[https://en.wikipedia.org/wiki/Model_synthesis] implementation in c.
+A simple [wave function collapse/model synthesis](https://en.wikipedia.org/wiki/Model_synthesis) implementation in c.
 
 ## Todo
 
