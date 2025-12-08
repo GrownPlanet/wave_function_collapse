@@ -15,7 +15,9 @@ int main(int argc, char **argv) {
     }
 
     img = WFC_read_file(argv[1]);
-    if (img.status_code != WFC_OK) goto cleanup;
+    if (img.status_code != WFC_OK) {
+         goto cleanup;
+    }
 
     return_code = 0;
 cleanup:
