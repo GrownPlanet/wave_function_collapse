@@ -1,6 +1,8 @@
 #ifndef WFC_H
 #define WFC_H
 
+#include <stdbool.h>
+
 // status codes
 #define WFC_OK 0
 #define WFC_ERROR 1
@@ -27,24 +29,48 @@ typedef struct {
  */
 WFC_Bitmap WFC_read_file(const char *filename);
 
-// stores a region and the possible neighbours
-typedef struct {
-    WFC_Point location; // index of the pattern
-    WFC_Point *up, *down, *left, *right; // possible neighbours
-} WFC_Pattern;
+// the amount of directions
+#define WFC_DIRECTION_COUNT 4
 
-// stores all possible neighbours
+// stores a direction
+typedef enum {
+    WFC_DIR_UP = 0,
+    WFC_DIR_DOWN = 1,
+    WFC_DIR_LEFT = 2,
+    WFC_DIR_RIGHT = 3,
+} WFC_Dir;
+
+// Stores the neighbors of a specific point, the indices are a direction
 typedef struct {
-    WFC_Pattern *patterns;
-    size_t region_size;
-    int status_code;
-} WFC_Patterns;
+    WFC_Point *neighbors[WFC_DIRECTION_COUNT];
+    size_t lengths[WFC_DIRECTION_COUNT];
+    size_t capacities[WFC_DIRECTION_COUNT];
+    bool had_error;
+} WFC_Neighbors;
+
+// free the heap allocated data from WFC_Neighbors
+void free_neighbors(WFC_Neighbors *neighbors);
+
+// hashmap with a point as key and its neighbors as value
+typedef struct {
+    WFC_Point key;
+    WFC_Neighbors value;
+    bool active;
+} WFC_NeighborMapEntry;
+
+// stores the value of a entry and if there was an error
+typedef struct {
+    WFC_NeighborMapEntry *data;
+    size_t capacity;
+    size_t length;
+    bool had_error;
+} WFC_NeighborMap;
 
 /*
  * extracts the patterns from an image
  *
- * returns NULL in case of an error
+ * sets had_error to true in case of an error
  */
-WFC_Patterns WFC_extract_patterns(WFC_Bitmap bitmap, size_t region_size);
+WFC_NeighborMap WFC_extract_patterns(WFC_Bitmap bitmap, size_t region_size);
 
 #endif
