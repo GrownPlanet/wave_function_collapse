@@ -26,7 +26,6 @@ the code.
 
 ## Todo
 
-* extract the patterns
 * collapse cells
 * output image
 

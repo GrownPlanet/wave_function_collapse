@@ -312,6 +312,9 @@ WFC_NeighborMap WFC_extract_patterns(WFC_Bitmap bitmap, size_t region_size) {
                 neighbors = found_neighbors;
             }
 
+            // Doesn't deduplicate the entries (yet), so entries that come
+            // up more often have a higher chance of being selected. But
+            // that's not a but, it's a feature.
             wfc_neighbor_map_set(&neighbor_map, pattern_location, neighbors);
         }
     }
