@@ -11,15 +11,16 @@ int main(int argc, char **argv) {
     int status_code = 1;
     WFC_Bitmap img = {0};
     WFC_NeighborMap patterns = {0};
+    WFC_Bitmap output = {0};
 
     if (argc != 3) {
-        fprintf(stderr, "wfc: missing file operand\n");
-        printf("usage: %s SOURCE DEST\n", argv[0]);
+        fprintf(stderr, "missing file operand\n");
+        fprintf(stderr, "usage: %s SOURCE DEST\n", argv[0]);
         goto cleanup;
     }
 
-    img = WFC_read_file(argv[1]);
-    if (img.status_code != WFC_OK) {
+    img = WFC_read_image(argv[1]);
+    if (img.had_error) {
         goto cleanup;
     }
 
@@ -28,10 +29,22 @@ int main(int argc, char **argv) {
         goto cleanup;
     }
 
+    WFC_Point output_size = { .x = 32, .y = 32 };
+    output = WFC_Solve(patterns, img, region_size, output_size);
+    if (output.had_error) {
+        goto cleanup;
+    }
+
+    int result = WFC_write_image(argv[2], output);
+    if (result != 0) {
+        goto cleanup;
+    }
+
     status_code = 0;
 
 cleanup:
     free(img.data);
+    free(output.data);
     wfc_neighbor_map_free(&patterns);
     return status_code;
 }

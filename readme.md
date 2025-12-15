@@ -28,6 +28,7 @@ the code.
 
 * collapse cells
 * output image
+* add more errors for impossible things (eg. region_size > input image size)
 
 ## Goals
 

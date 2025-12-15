@@ -21,13 +21,15 @@ typedef struct {
 typedef struct {
     WFC_Color *data;
     size_t height, width;
-    int status_code;
+    bool had_error;
 } WFC_Bitmap;
 
 /*
  * read and parse a PPM3 P3 file
+ *
+ * sets had_error to true in case of an error
  */
-WFC_Bitmap WFC_read_file(const char *filename);
+WFC_Bitmap WFC_read_image(const char *filename);
 
 // the amount of directions
 #define WFC_DIRECTION_COUNT 4
@@ -40,7 +42,7 @@ typedef enum {
     WFC_DIR_RIGHT = 3,
 } WFC_Dir;
 
-// Stores the neighbors of a specific point, the indices are a direction
+// stores the neighbors of a specific point, the indices are a direction
 typedef struct {
     WFC_Point *neighbors[WFC_DIRECTION_COUNT];
     size_t lengths[WFC_DIRECTION_COUNT];
@@ -72,5 +74,25 @@ typedef struct {
  * sets had_error to true in case of an error
  */
 WFC_NeighborMap WFC_extract_patterns(WFC_Bitmap bitmap, size_t region_size);
+
+/*
+ * create a new image based on a patterns of a bitmap
+ *
+ * output_size is the size in tiles, the size of the bitmap will be
+ * region_size * output_size
+ */
+WFC_Bitmap WFC_Solve(
+    WFC_NeighborMap map,
+    WFC_Bitmap bitmap,
+    size_t region_size,
+    WFC_Point output_size
+);
+
+/*
+ * read and parse a PPM3 P3 file
+ *
+ * returns WFC_ERROR in case of an error
+ */
+int WFC_write_image(const char *filename, WFC_Bitmap bitmap);
 
 #endif

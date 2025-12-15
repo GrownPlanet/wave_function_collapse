@@ -56,16 +56,16 @@ int read_colors(FILE *file, WFC_Bitmap *result) {
     return WFC_OK;
 }
 
-WFC_Bitmap WFC_read_file(const char *filename) {
+WFC_Bitmap WFC_read_image(const char *filename) {
     WFC_Bitmap result = {
         .data = NULL,
         .height = 0,
         .width = 0,
-        .status_code = WFC_ERROR
+        .had_error = true,
     };
 
-    FILE *file = fopen(filename, "rb");
-    if (!file) {
+    FILE *file = fopen(filename, "r");
+    if (file == NULL) {
         fprintf(stderr, "failed to open file\n");
         goto cleanup;
     }
@@ -78,14 +78,14 @@ WFC_Bitmap WFC_read_file(const char *filename) {
         goto cleanup;
     }
 
-    result.status_code = WFC_OK;
+    result.had_error = false;
 
 cleanup:
     if (file) {
         fclose(file);
     }
 
-    if (result.status_code != WFC_OK) {
+    if (result.had_error) {
         free(result.data);
         result.data = NULL;
     }
@@ -111,13 +111,13 @@ WFC_Bitmap extract_region(
         .data = NULL,
         .height = region_size,
         .width = region_size,
-        .status_code = WFC_ERROR,
+        .had_error = true,
     };
 
     result.data = malloc(sizeof(*result.data) * result.width * result.height);
     if (result.data == NULL) {
         fprintf(stderr, "malloc failed\n");
-        goto cleanup;
+        return result;
     }
 
     for (size_t y_offset = 0; y_offset < region_size; y_offset++) {
@@ -129,13 +129,7 @@ WFC_Bitmap extract_region(
         }
     }
 
-    result.status_code = WFC_OK;
-
-cleanup:
-    if (result.status_code != WFC_OK) {
-        free(result.data);
-        result.data = NULL;
-    }
+    result.had_error = false;
 
     return result;
 }
@@ -325,4 +319,107 @@ WFC_NeighborMap WFC_extract_patterns(WFC_Bitmap bitmap, size_t region_size) {
 cleanup:
     wfc_bitmap_map_free(&bitmap_map);
     return neighbor_map;
+}
+
+typedef struct {
+    bool collapsed;
+    WFC_Point location;
+} Cell;
+
+WFC_Color *generate_bitmap(
+    Cell *solution,
+    WFC_Bitmap reference,
+    WFC_Point output_size,
+    size_t region_size
+) {
+    size_t width = region_size * output_size.x;
+    size_t height = region_size * output_size.y;
+    WFC_Color *result = malloc(sizeof(WFC_Color) * width * height);
+    if (result == NULL) {
+        return result;
+    }
+
+    for (size_t y = 0; y < output_size.y; y++) {
+        for (size_t x = 0; x < output_size.x; x++) {
+            WFC_Point ref_point = solution[y * output_size.x + x].location;
+
+            for (size_t xo = 0; xo < region_size; xo++) {
+                for (size_t yo = 0; yo < region_size; yo++) {
+                    size_t ref_x = ref_point.x + xo;
+                    size_t ref_y = ref_point.y + yo;
+                    WFC_Color color
+                        = reference.data[ref_y * reference.width + ref_x];
+
+                    size_t new_x = x * region_size + xo;
+                    size_t new_y = y * region_size + yo;
+                    result[new_y * width + new_x] = color;
+                }
+            }
+
+        }
+    }
+
+    return result;
+}
+
+WFC_Bitmap WFC_Solve(
+    WFC_NeighborMap map,
+    WFC_Bitmap bitmap,
+    size_t region_size,
+    WFC_Point output_size
+) {
+    WFC_Bitmap result = {
+        .data = NULL,
+        .height = output_size.y * region_size,
+        .width = output_size.x * region_size,
+        .had_error = true,
+    };
+
+    size_t size = output_size.x * output_size.y;
+    Cell *solution = malloc(sizeof(Cell) * size);
+    if (solution == NULL) {
+        fprintf(stderr, "malloc failed\n");
+        return result;
+    }
+
+    for (size_t i = 0; i < size; i++) {
+        solution[i].collapsed = false;
+    }
+
+    result.data = generate_bitmap(solution, bitmap, output_size, region_size);
+    if (result.data == NULL) {
+        goto cleanup;
+    }
+
+    result.had_error = false;
+
+cleanup:
+    free(solution);
+    if (result.had_error) {
+        free(result.data);
+        result.data = NULL;
+    }
+
+    return result;
+}
+
+int WFC_write_image(const char *filename, WFC_Bitmap bitmap) {
+    FILE *file = fopen(filename, "w");
+    if (file == NULL) {
+        fprintf(stderr, "failed to open file");
+        return 1;
+    }
+
+    // header
+    fprintf(file, "P3\n");
+    fprintf(file, "%d %d\n", bitmap.width, bitmap.height);
+    fprintf(file, "255\n");
+
+    // data
+    for (size_t i = 0; i < bitmap.width * bitmap.height; i++) {
+        WFC_Color color = bitmap.data[i];
+        fprintf(file, "%d %d %d\n", color.r, color.g, color.b);
+    }
+
+    return WFC_OK;
 }
