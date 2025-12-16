@@ -80,7 +80,7 @@ WFC_NeighborMapResult wfc_neighbor_map_get(
  * Sets a value, if it already exists it overwrites it (without freeing the
  * corresponding data), else it overwrites it
  *
- * returns WFC_ERROR in case of an error
+ * returns 1 in case of an error
  */
 int wfc_neighbor_map_set(
     WFC_NeighborMap *neighbor_map, WFC_Point key, WFC_Neighbors value

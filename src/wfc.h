@@ -3,10 +3,6 @@
 
 #include <stdbool.h>
 
-// status codes
-#define WFC_OK 0
-#define WFC_ERROR 1
-
 // stores a location
 typedef struct {
     size_t x, y;
@@ -91,7 +87,7 @@ WFC_Bitmap WFC_Solve(
 /*
  * read and parse a PPM3 P3 file
  *
- * returns WFC_ERROR in case of an error
+ * returns 1 in case of an error
  */
 int WFC_write_image(const char *filename, WFC_Bitmap bitmap);
 

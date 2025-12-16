@@ -9,7 +9,7 @@ int read_header(FILE *file, WFC_Bitmap *result) {
     char header[3];
     if (fscanf(file, "%2s", header) != 1 || strcmp(header, "P3") != 0) {
         fprintf(stderr, "unsupported PPM format\n");
-        return WFC_ERROR;
+        return 1;
     }
 
     int width, height, maxval;
@@ -20,12 +20,12 @@ int read_header(FILE *file, WFC_Bitmap *result) {
         || maxval != 255
     ) {
         fprintf(stderr, "invalid PPM file\n");
-        return WFC_ERROR;
+        return 1;
     }
     result->width = width;
     result->height = height;
 
-    return WFC_OK;
+    return 0;
 }
 
 int read_colors(FILE *file, WFC_Bitmap *result) {
@@ -33,7 +33,7 @@ int read_colors(FILE *file, WFC_Bitmap *result) {
     result->data = malloc(sizeof(*result->data) * size);
     if (!result->data) {
         fprintf(stderr, "malloc failed\n");
-        return WFC_ERROR;
+        return 1;
     }
 
     size_t i = 0;
@@ -41,7 +41,7 @@ int read_colors(FILE *file, WFC_Bitmap *result) {
     while (fscanf(file, "%d %d %d", &r, &g, &b) == 3) {
         if (i >= size) {
             fprintf(stderr, "invalid PPM file\n");
-            return WFC_ERROR;
+            return 1;
         }
         WFC_Color c = { .r = r, .b = b, .g = g };
         result->data[i] = c;
@@ -50,10 +50,10 @@ int read_colors(FILE *file, WFC_Bitmap *result) {
 
     if (i != size || !feof(file)) {
         fprintf(stderr, "invalid PPM file\n");
-        return WFC_ERROR;
+        return 1;
     }
 
-    return WFC_OK;
+    return 0;
 }
 
 WFC_Bitmap WFC_read_image(const char *filename) {
@@ -70,11 +70,11 @@ WFC_Bitmap WFC_read_image(const char *filename) {
         goto cleanup;
     }
 
-    if (read_header(file, &result) != WFC_OK) {
+    if (read_header(file, &result) != 0) {
         goto cleanup;
     }
 
-    if (read_colors(file, &result) != WFC_OK) {
+    if (read_colors(file, &result) != 0) {
         goto cleanup;
     }
 
@@ -234,14 +234,14 @@ int append_point(
         WFC_Point *new_data = realloc(*data, sizeof(**data) * new_capacity);
         if (new_data == NULL) {
             fprintf(stderr, "realloc failed\n");
-            return WFC_ERROR;
+            return 1;
         }
         *data = new_data;
         *capacity = new_capacity;
     }
     (*data)[*length] = new_point;
     (*length) += 1;
-    return WFC_OK;
+    return 0;
 }
 
 int append_neighbors(WFC_Neighbors *neighbors, WFC_Neighbors *to_append) {
@@ -258,14 +258,14 @@ int append_neighbors(WFC_Neighbors *neighbors, WFC_Neighbors *to_append) {
         int res = append_point(
             points, length, capacity, new_point
         );
-        if (res != WFC_OK) {
+        if (res != 0) {
             return res;
         }
     }
 
     free_neighbors(to_append);
 
-    return WFC_OK;
+    return 0;
 }
 
 WFC_NeighborMap WFC_extract_patterns(WFC_Bitmap bitmap, size_t region_size) {
@@ -300,7 +300,7 @@ WFC_NeighborMap WFC_extract_patterns(WFC_Bitmap bitmap, size_t region_size) {
             if (found_neighbors_maybe.found) {
                 WFC_Neighbors found_neighbors = found_neighbors_maybe.value;
                 int res = append_neighbors(&found_neighbors, &neighbors);
-                if (res != WFC_OK) {
+                if (res != 0) {
                     goto cleanup;
                 }
                 neighbors = found_neighbors;
@@ -421,5 +421,5 @@ int WFC_write_image(const char *filename, WFC_Bitmap bitmap) {
         fprintf(file, "%d %d %d\n", color.r, color.g, color.b);
     }
 
-    return WFC_OK;
+    return 0;
 }

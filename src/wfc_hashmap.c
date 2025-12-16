@@ -61,7 +61,7 @@ int bitmap_map_realloc(WFC_BitmapMap *bitmap_map) {
         malloc(sizeof(*bitmap_map->data) * new_capacity);
     if (new_data == NULL) {
         fprintf(stderr, "malloc failed\n");
-        return WFC_ERROR;
+        return 1;
     }
 
     for (size_t i = 0; i < new_capacity; i++) {
@@ -89,7 +89,7 @@ int bitmap_map_realloc(WFC_BitmapMap *bitmap_map) {
     bitmap_map->data = new_data;
     bitmap_map->capacity = new_capacity;
 
-    return WFC_OK;
+    return 0;
 }
 
 WFC_BitmapMapResult wfc_bitmap_map_get_or_insert(
@@ -115,7 +115,7 @@ WFC_BitmapMapResult wfc_bitmap_map_get_or_insert(
             ((float)bitmap_map->length + 1.0) / (float)bitmap_map->capacity;
         if (load_factor >= MAX_LOAD_FACTOR) {
             int res = bitmap_map_realloc(bitmap_map);
-            if (res != WFC_OK) {
+            if (res != 0) {
                 return result;
             }
         }
@@ -203,7 +203,7 @@ int neighbor_map_realloc(WFC_NeighborMap *neighbor_map) {
         malloc(sizeof(*neighbor_map->data) * new_capacity);
     if (new_data == NULL) {
         fprintf(stderr, "malloc failed\n");
-        return WFC_ERROR;
+        return 1;
     }
 
     for (size_t i = 0; i < new_capacity; i++) {
@@ -231,7 +231,7 @@ int neighbor_map_realloc(WFC_NeighborMap *neighbor_map) {
     neighbor_map->data = new_data;
     neighbor_map->capacity = new_capacity;
 
-    return WFC_OK;
+    return 0;
 }
 
 int wfc_neighbor_map_set(
@@ -249,7 +249,7 @@ int wfc_neighbor_map_set(
         ((float)neighbor_map->length + 1.0) / (float)neighbor_map->capacity;
     if (load_factor >= MAX_LOAD_FACTOR) {
         int res = neighbor_map_realloc(neighbor_map);
-        if (res != WFC_OK) {
+        if (res != 0) {
             return res;
         }
     }
@@ -262,7 +262,7 @@ int wfc_neighbor_map_set(
         neighbor_map->length++;
     }
 
-    return WFC_OK;
+    return 0;
 }
 
 void wfc_neighbor_map_free(WFC_NeighborMap *neighbor_map) {
