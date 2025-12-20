@@ -46,30 +46,27 @@ typedef struct {
     bool had_error;
 } WFC_Neighbors;
 
-// free the heap allocated data from WFC_Neighbors
-void free_neighbors(WFC_Neighbors *neighbors);
-
 // hashmap with a point as key and its neighbors as value
 typedef struct {
     WFC_Point key;
     WFC_Neighbors value;
     bool active;
-} WFC_NeighborMapEntry;
+} WFC_Pattern;
 
 // stores the value of a entry and if there was an error
 typedef struct {
-    WFC_NeighborMapEntry *data;
+    WFC_Pattern *data;
     size_t capacity;
     size_t length;
     bool had_error;
-} WFC_NeighborMap;
+} WFC_Patterns;
 
 /*
  * extracts the patterns from an image
  *
  * sets had_error to true in case of an error
  */
-WFC_NeighborMap WFC_extract_patterns(WFC_Bitmap bitmap, size_t region_size);
+WFC_Patterns WFC_extract_patterns(WFC_Bitmap bitmap, size_t region_size);
 
 /*
  * create a new image based on a patterns of a bitmap
@@ -78,7 +75,7 @@ WFC_NeighborMap WFC_extract_patterns(WFC_Bitmap bitmap, size_t region_size);
  * region_size * output_size
  */
 WFC_Bitmap WFC_Solve(
-    WFC_NeighborMap map,
+    WFC_Patterns map,
     WFC_Bitmap bitmap,
     size_t region_size,
     WFC_Point output_size
@@ -90,5 +87,12 @@ WFC_Bitmap WFC_Solve(
  * returns 1 in case of an error
  */
 int WFC_write_image(const char *filename, WFC_Bitmap bitmap);
+
+/*
+ * Frees a neighbor_maps heap allocated data. If neighbor_map is NULL, nothing
+ * is done.
+ */
+void wfc_patterns_free(WFC_Patterns *neighbor_map);
+
 
 #endif

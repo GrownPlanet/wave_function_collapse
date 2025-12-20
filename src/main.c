@@ -3,14 +3,13 @@
 #include <stdlib.h>
 
 #include "wfc.h"
-#include "wfc_hashmap.h"
 
 int main(int argc, char **argv) {
     const size_t region_size = 3;
 
     int status_code = 1;
     WFC_Bitmap img = {0};
-    WFC_NeighborMap patterns = {0};
+    WFC_Patterns patterns = {0};
     WFC_Bitmap output = {0};
 
     if (argc != 3) {
@@ -45,6 +44,6 @@ int main(int argc, char **argv) {
 cleanup:
     free(img.data);
     free(output.data);
-    wfc_neighbor_map_free(&patterns);
+    wfc_patterns_free(&patterns);
     return status_code;
 }
