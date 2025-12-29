@@ -38,11 +38,23 @@ typedef enum {
     WFC_DIR_RIGHT = 3,
 } WFC_Dir;
 
+// enty for a hashset of points
+typedef struct {
+    WFC_Point value;
+    bool active;
+} WFC_PointSetEntry;
+
+// hashset of points
+typedef struct {
+    WFC_PointSetEntry *data;
+    size_t length;
+    size_t capacity;
+    bool had_error;
+} WFC_PointSet;
+
 // stores the neighbors of a specific point, the indices are a direction
 typedef struct {
-    WFC_Point *neighbors[WFC_DIRECTION_COUNT];
-    size_t lengths[WFC_DIRECTION_COUNT];
-    size_t capacities[WFC_DIRECTION_COUNT];
+    WFC_PointSet *neighbors[WFC_DIRECTION_COUNT];
     bool had_error;
 } WFC_Neighbors;
 

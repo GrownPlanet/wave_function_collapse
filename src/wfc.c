@@ -31,7 +31,7 @@ typedef struct {
 typedef struct {
     WFC_Neighbors value;
     bool found;
-} WFC_PatternsResult;
+} PatternsResult;
 
 int read_header(FILE *file, WFC_Bitmap *result) {
     char header[3];
@@ -187,7 +187,7 @@ bool compare_bitmaps(WFC_Bitmap a, WFC_Bitmap b) {
     return true;
 }
 
-BitMapMap new_bitmap_map() {
+BitMapMap new_bitmapmap() {
     BitMapMap result = {
         .data = NULL,
         .capacity = INITIAL_CAPACITY,
@@ -212,10 +212,10 @@ BitMapMap new_bitmap_map() {
     return result;
 }
 
-int bitmap_map_realloc(BitMapMap *bitmap_map) {
-    size_t new_capacity = bitmap_map->capacity * GROWTH_FACTOR;
+int bitmapmap_realloc(BitMapMap *bitmapmap) {
+    size_t new_capacity = bitmapmap->capacity * GROWTH_FACTOR;
     BitMapMapEntry *new_data =
-        malloc(sizeof(*bitmap_map->data) * new_capacity);
+        malloc(sizeof(*bitmapmap->data) * new_capacity);
     if (new_data == NULL) {
         fprintf(stderr, "malloc failed\n");
         return 1;
@@ -225,32 +225,34 @@ int bitmap_map_realloc(BitMapMap *bitmap_map) {
         new_data[i].active = false;
     }
 
-    for (size_t i = 0; i < bitmap_map->capacity; i++) {
-        BitMapMapEntry old_entry = bitmap_map->data[i];
+    for (size_t i = 0; i < bitmapmap->capacity; i++) {
+        BitMapMapEntry old_entry = bitmapmap->data[i];
         if (!old_entry.active) {
             continue;
         }
 
-        size_t index = hash_bitmap(old_entry.key) % bitmap_map->capacity;
-        BitMapMapEntry entry = bitmap_map->data[index];
-        while (entry.active && !compare_bitmaps(entry.key, old_entry.key)) {
-            index = (index + 1) % bitmap_map->capacity;
-            entry = bitmap_map->data[index];
+        size_t index = hash_bitmap(old_entry.key) % new_capacity;
+        BitMapMapEntry *entry = &new_data[index];
+        while (entry->active && !compare_bitmaps(entry->key, old_entry.key)) {
+            index = (index + 1) % new_capacity;
+            entry = &new_data[index];
         }
 
-        new_data[index] = entry;
+        entry->key = old_entry.key;
+        entry->value = old_entry.value;
+        entry->active = true;
     }
 
-    free(bitmap_map->data);
+    free(bitmapmap->data);
 
-    bitmap_map->data = new_data;
-    bitmap_map->capacity = new_capacity;
+    bitmapmap->data = new_data;
+    bitmapmap->capacity = new_capacity;
 
     return 0;
 }
 
-BitMapMapResult bitmap_map_get_or_insert(
-    BitMapMap *bitmap_map,
+BitMapMapResult bitmapmap_get_or_insert(
+    BitMapMap *bitmapmap,
     WFC_Bitmap key,
     WFC_Point value
 ) {
@@ -259,19 +261,19 @@ BitMapMapResult bitmap_map_get_or_insert(
         .had_error = true,
     };
 
-    size_t index = hash_bitmap(key) % bitmap_map->capacity;
-    BitMapMapEntry *entry = &bitmap_map->data[index];
+    size_t index = hash_bitmap(key) % bitmapmap->capacity;
+    BitMapMapEntry *entry = &bitmapmap->data[index];
 
     while (entry->active && !compare_bitmaps(entry->key, key)) {
-        index = (index + 1) % bitmap_map->capacity;
-        entry = &bitmap_map->data[index];
+        index = (index + 1) % bitmapmap->capacity;
+        entry = &bitmapmap->data[index];
     }
 
     if (!entry->active) {
         float load_factor =
-            ((float)bitmap_map->length + 1.0) / (float)bitmap_map->capacity;
+            ((float)bitmapmap->length + 1.0) / (float)bitmapmap->capacity;
         if (load_factor >= MAX_LOAD_FACTOR) {
-            int res = bitmap_map_realloc(bitmap_map);
+            int res = bitmapmap_realloc(bitmapmap);
             if (res != 0) {
                 return result;
             }
@@ -281,7 +283,7 @@ BitMapMapResult bitmap_map_get_or_insert(
         entry->value = value;
         entry->active = true;
 
-        bitmap_map->length++;
+        bitmapmap->length++;
     } else {
         result.value = entry->value;
     }
@@ -289,12 +291,12 @@ BitMapMapResult bitmap_map_get_or_insert(
     return result;
 }
 
-void bitmap_map_free(BitMapMap *bitmap_map) {
-    for (size_t i = 0; i < bitmap_map->capacity; i++) {
-        free(bitmap_map->data[i].key.data);
+void bitmapmap_free(BitMapMap *bitmapmap) {
+    for (size_t i = 0; i < bitmapmap->capacity; i++) {
+        free(bitmapmap->data[i].key.data);
     }
-    free(bitmap_map->data);
-    bitmap_map->data = NULL;
+    free(bitmapmap->data);
+    bitmapmap->data = NULL;
 }
 
 size_t hash_point(WFC_Point point) {
@@ -330,10 +332,10 @@ WFC_Patterns new_wfc_patterns() {
     return result;
 }
 
-WFC_PatternsResult wfc_patterns_get(
+PatternsResult wfc_patterns_get(
     WFC_Patterns patterns, WFC_Point key
 ) {
-    WFC_PatternsResult result;
+    PatternsResult result;
     result.found = false;
 
     size_t index = hash_point(key) % patterns.capacity;
@@ -373,14 +375,16 @@ int patterns_realloc(WFC_Patterns *patterns) {
             continue;
         }
 
-        size_t index = hash_point(old_entry.key) % patterns->capacity;
-        WFC_Pattern entry = patterns->data[index];
-        while (entry.active && !compare_points(entry.key, old_entry.key)) {
-            index = (index + 1) % patterns->capacity;
-            entry = patterns->data[index];
+        size_t index = hash_point(old_entry.key) % new_capacity;
+        WFC_Pattern *entry = &new_data[index];
+        while (entry->active && !compare_points(entry->key, old_entry.key)) {
+            index = (index + 1) % new_capacity;
+            entry = &new_data[index];
         }
 
-        new_data[index] = entry;
+        entry->value = old_entry.value;
+        entry->key = old_entry.key;
+        entry->active = true;
     }
 
     free(patterns->data);
@@ -422,19 +426,93 @@ int wfc_patterns_set(
     return 0;
 }
 
-void wfc_patterns_free(WFC_Patterns *patterns) {
-    if (patterns == NULL) {
-        return; 
+WFC_PointSet new_pointset() {
+    WFC_PointSet result = {
+        .data = NULL,
+        .length = 0,
+        .capacity = 4,
+        .had_error = true,
+    };
+
+    result.data = malloc(sizeof(WFC_PointSetEntry) * result.capacity);
+    if (result.data == NULL) {
+        fprintf(stderr, "malloc failed\n");
+        return result;
     }
 
-    for (size_t i = 0; i < patterns->capacity; i++) {
-        WFC_Pattern entry = patterns->data[i];
-        if (entry.active) {
-            free_neighbors(&entry.value);
+    for (size_t i = 0; i < result.capacity; i++) {
+        result.data[i].active = false;
+    }
+
+    result.had_error = false;
+    return result;
+}
+
+int pointset_realloc(WFC_PointSet *pointset) {
+    size_t new_capacity = pointset->capacity * GROWTH_FACTOR;
+    WFC_PointSetEntry *new_data = malloc(sizeof(PointSetEntry) * new_capacity);
+    if (new_data == NULL) {
+        fprintf(stderr, "malloc failed\n");
+        return 1;
+    }
+
+    for (size_t i = 0; i < new_capacity; i++) {
+        new_data[i].active = false;
+    }
+
+    for (size_t i = 0; i < pointset->capacity; i++) {
+        WFC_PointSetEntry old_entry = pointset->data[i];
+        if (!old_entry.active) {
+            continue;
+        }
+
+        size_t index = hash_point(old_entry.value) % new_capacity;
+        WFC_PointSetEntry *entry = &new_data[index];
+        while (entry->active && !compare_points(entry->value, old_entry.value)) {
+            index = (index + 1) % new_capacity;
+            entry = &new_data[index];
+        }
+
+        entry->value = old_entry.value;
+        entry->active = true;
+    }
+
+    free(pointset->data);
+
+    pointset->data = new_data;
+    pointset->capacity = new_capacity;
+
+    return 0;
+}
+
+int pointset_insert(WFC_PointSet *pointset, WFC_Point point) {
+    size_t index = hash_point(point) % pointset->capacity;
+    WFC_PointSetEntry *entry = &pointset->data[index];
+
+    while (entry->active && !compare_points(entry->value, point)) {
+        index = (index + 1) % pointset->capacity;
+        entry = &pointset->data[index];
+    }
+
+    // it already exists
+    if (entry->active) {
+        return 0;
+    }
+
+    float load_factor =
+        ((float)pointset->length + 1.0) / (float)pointset->capacity;
+    if (load_factor >= MAX_LOAD_FACTOR) {
+        int res = pointset_realloc(pointset);
+        if (res != 0) {
+            return res;
         }
     }
-    free(patterns->data);
-    patterns->data = NULL;
+
+    entry->value = point;
+    entry->active = true;
+    pointset->length++;
+    
+    return 0;
 }
 
 typedef struct {
@@ -445,7 +523,7 @@ typedef struct {
 
 FindNeighborDirResult find_neighbor_dir(
     WFC_Bitmap bitmap,
-    BitMapMap *bitmap_map,
+    BitMapMap *bitmapmap,
     size_t region_size,
     size_t x,
     size_t y,
@@ -488,8 +566,8 @@ FindNeighborDirResult find_neighbor_dir(
     pattern_location->x = new_x;
     pattern_location->y = new_y;
 
-    BitMapMapResult location = bitmap_map_get_or_insert(
-        bitmap_map, region, *pattern_location
+    BitMapMapResult location = bitmapmap_get_or_insert(
+        bitmapmap, region, *pattern_location
     );
     pattern_location->x = location.value.x;
     pattern_location->y = location.value.y;
@@ -502,7 +580,7 @@ FindNeighborDirResult find_neighbor_dir(
 
 WFC_Neighbors find_neighbors(
     WFC_Bitmap bitmap,
-    BitMapMap *bitmap_map,
+    BitMapMap *bitmapmap,
     size_t region_size,
     size_t x,
     size_t y
@@ -517,7 +595,7 @@ WFC_Neighbors find_neighbors(
     for (size_t i = 0; i < WFC_DIRECTION_COUNT; i++) {
         int dir = dirs[i];
         FindNeighborDirResult neighbor = find_neighbor_dir(
-            bitmap, bitmap_map, region_size, x, y, dir
+            bitmap, bitmapmap, region_size, x, y, dir
         );
         if (neighbor.had_error) {
             neighbors.had_error = true;
@@ -545,7 +623,7 @@ int append_point(
         *capacity = new_capacity;
     }
     (*data)[*length] = new_point;
-    (*length) += 1;
+    (*length)++;
     return 0;
 }
 
@@ -580,8 +658,8 @@ WFC_Patterns WFC_extract_patterns(WFC_Bitmap bitmap, size_t region_size) {
     }
     patterns.had_error = true;
 
-    BitMapMap bitmap_map = new_bitmap_map();
-    if (bitmap_map.had_error) {
+    BitMapMap bitmapmap = new_bitmapmap();
+    if (bitmapmap.had_error) {
         goto cleanup;
     }
 
@@ -590,16 +668,16 @@ WFC_Patterns WFC_extract_patterns(WFC_Bitmap bitmap, size_t region_size) {
             WFC_Bitmap region = extract_region(bitmap, region_size, x, y);
             WFC_Point pattern_location = { .x = x, .y = y };
 
-            BitMapMapResult location = bitmap_map_get_or_insert(
-                &bitmap_map, region, pattern_location
+            BitMapMapResult location = bitmapmap_get_or_insert(
+                &bitmapmap, region, pattern_location
             );
             pattern_location = location.value;
 
-            WFC_PatternsResult found_neighbors_maybe =
+            PatternsResult found_neighbors_maybe =
                 wfc_patterns_get(patterns, pattern_location);
 
             WFC_Neighbors neighbors = find_neighbors(
-                bitmap, &bitmap_map, region_size, x, y
+                bitmap, &bitmapmap, region_size, x, y
             );
 
             if (found_neighbors_maybe.found) {
@@ -622,7 +700,7 @@ WFC_Patterns WFC_extract_patterns(WFC_Bitmap bitmap, size_t region_size) {
     patterns.had_error = false;
 
 cleanup:
-    bitmap_map_free(&bitmap_map);
+    bitmapmap_free(&bitmapmap);
     return patterns;
 }
 
@@ -733,3 +811,19 @@ int WFC_write_image(const char *filename, WFC_Bitmap bitmap) {
 
     return 0;
 }
+
+void wfc_patterns_free(WFC_Patterns *patterns) {
+    if (patterns == NULL) {
+        return; 
+    }
+
+    for (size_t i = 0; i < patterns->capacity; i++) {
+        WFC_Pattern entry = patterns->data[i];
+        if (entry.active) {
+            free_neighbors(&entry.value);
+        }
+    }
+    free(patterns->data);
+    patterns->data = NULL;
+}
+
