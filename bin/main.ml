@@ -1,47 +1,17 @@
 type color = { r : int; g : int; b : int }
 type bitmap = { width : int; height : int; data : color array array }
 
-let read_file filename = In_channel.(with_open_text filename input_lines)
-
-let parse_data width data =
-  let update_acc row_acc row_accl acc =
-    if row_accl >= width then ([], 0, List.rev row_acc :: acc)
-    else (row_acc, row_accl, acc)
-  in
-  let rec aux row_acc row_accl acc data =
-    match data with
-    | p :: r ->
-        let row_acc', row_accl', acc =
-          update_acc (p :: row_acc) (row_accl + 1) acc
-        in
-        aux row_acc' row_accl' acc r
-    | [] -> List.rev acc |> List.map Array.of_list |> Array.of_list
-  in
-  aux [] 0 [] data
-
-let parse_input data =
-  match data with
-  | version :: size :: color_space :: data ->
-      if version <> "P3" || color_space <> "255" then
-        invalid_arg "invalid header in the ppm file"
+let parse_input channel =
+  let ib = Scanf.Scanning.from_channel channel in
+  Scanf.bscanf ib " %s %d %d %d" (fun version width height color_space ->
+      if version <> "P3" || color_space <> 255 then
+        failwith "invalid header in the ppm file"
       else
-        let width, height =
-          try Scanf.sscanf size "%d %d" (fun w h -> (w, h))
-          with End_of_file ->
-            invalid_arg "invalid image dimensions in the ppm file"
-        in
         let data =
-          try
-            data
-            |> List.map (fun c ->
-                Scanf.sscanf c "%d %d %d" (fun r b g -> { r; b; g }))
-            |> parse_data width
-          with End_of_file -> invalid_arg "invalid color in the ppm file"
+          Array.init_matrix width height (fun _ _ ->
+              Scanf.bscanf ib " %d %d %d" (fun r b g -> { r; g; b }))
         in
-        if height > Array.length data then
-          invalid_arg "not enough data in the ppm file"
-        else { width; height; data }
-  | _ -> invalid_arg "invalid ppm file"
+        { width; height; data })
 
 module PointSet = Set.Make (struct
   type t = int * int
@@ -140,19 +110,12 @@ let generate_image patterns out_width out_height =
     tiles.(y).(x) <- Collapsed pos;
     changed
   in
-  (*
   let get_neighbors x y =
-    [
-      (x, y - 1);
-      (x, y + 1);
-      (x - 1, y);
-      (x + 1, y);
-    ]
+    [ (x, y - 1); (x, y + 1); (x - 1, y); (x + 1, y) ]
     |> List.filter_map (fun (x, y) ->
         if x < 0 || y < 0 || x >= out_width || y >= out_height then None
         else Some (x, y))
   in
-  *)
   let collapse_neighbors point =
     let rec aux point =
       let _ = point in
@@ -168,8 +131,9 @@ let generate_image patterns out_width out_height =
       let x, y = PointSet.choose to_visit in
       let to_visit = PointSet.remove (x, y) to_visit in
       let changed = collapse_point x y in
-      if changed then
-        (collapse_neighbors (x, y); (* TODO: add neighbors to to_visit *)
+      if changed then (
+        collapse_neighbors (x, y);
+        (* TODO: add neighbors to to_visit *)
         solve to_visit)
       else solve to_visit
   in
@@ -183,7 +147,7 @@ let generate_image patterns out_width out_height =
           let ix, iy =
             match tiles.(y1).(x1) with
             | Collapsed p -> p
-            | _ -> invalid_arg "something went wrong"
+            | _ -> failwith "something went wrong"
           in
           patterns.image.data.(iy + y2).(ix + x2))
     in
@@ -202,8 +166,7 @@ let write_image name image =
 let () =
   Random.set_state (Random.State.make_self_init ());
   let tile_size = 3 in
-  let image = parse_input (read_file "input.ppm") in
+  let image = In_channel.with_open_text "input.ppm" parse_input in
   let patterns = extract_patterns image tile_size in
   let output = generate_image patterns 10 10 in
-  let _ = Constrained [||] in
   write_image "out.ppm" output
