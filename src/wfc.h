@@ -54,7 +54,7 @@ typedef struct {
 
 // stores the neighbors of a specific point, the indices are a direction
 typedef struct {
-    WFC_PointSet *neighbors[WFC_DIRECTION_COUNT];
+    WFC_PointSet neighbors[WFC_DIRECTION_COUNT];
     bool had_error;
 } WFC_Neighbors;
 

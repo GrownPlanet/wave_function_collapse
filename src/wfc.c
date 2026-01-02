@@ -450,7 +450,8 @@ WFC_PointSet new_pointset() {
 
 int pointset_realloc(WFC_PointSet *pointset) {
     size_t new_capacity = pointset->capacity * GROWTH_FACTOR;
-    WFC_PointSetEntry *new_data = malloc(sizeof(PointSetEntry) * new_capacity);
+    WFC_PointSetEntry *new_data =
+        malloc(sizeof(WFC_PointSetEntry) * new_capacity);
     if (new_data == NULL) {
         fprintf(stderr, "malloc failed\n");
         return 1;
@@ -468,7 +469,9 @@ int pointset_realloc(WFC_PointSet *pointset) {
 
         size_t index = hash_point(old_entry.value) % new_capacity;
         WFC_PointSetEntry *entry = &new_data[index];
-        while (entry->active && !compare_points(entry->value, old_entry.value)) {
+        while (
+            entry->active && !compare_points(entry->value, old_entry.value)
+        ) {
             index = (index + 1) % new_capacity;
             entry = &new_data[index];
         }
@@ -597,13 +600,20 @@ WFC_Neighbors find_neighbors(
         FindNeighborDirResult neighbor = find_neighbor_dir(
             bitmap, bitmapmap, region_size, x, y, dir
         );
+
         if (neighbor.had_error) {
             neighbors.had_error = true;
             return neighbors;
         }
-        neighbors.lengths[i] = neighbor.exists ? 1 : 0;
-        neighbors.capacities[i] = neighbor.exists ? 1 : 0;
-        neighbors.neighbors[i] = neighbor.point;
+
+        neighbors.neighbors[i] = new_pointset();
+        if (neighbors.neighbors[i].had_error) {
+            return 1;
+        }
+
+        if (neighbor.exists) {
+            pointset_insert(&neighbors.neighbors[i], neighbor.point);
+        }
     }
 
     return neighbors;
