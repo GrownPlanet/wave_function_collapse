@@ -1,0 +1,4 @@
+(executable
+ (public_name wfc)
+ (name main)
+ (libraries wfc))
