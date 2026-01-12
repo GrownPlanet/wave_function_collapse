@@ -10,3 +10,7 @@ Requirements: ocaml and dune
 How to compile and run:
 
 `dune exec wfc`
+
+## todo
+
+- code opsplitsen in kleine files

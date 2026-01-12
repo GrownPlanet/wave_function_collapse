@@ -15,11 +15,8 @@ let parse_input channel =
 
 module PointSet = Set.Make (struct
   type t = int * int
-
   let compare = compare
 end)
-
-type direction = Up | Down | Left | Right
 
 type neighbors = {
   up : PointSet.t;
@@ -27,6 +24,22 @@ type neighbors = {
   left : PointSet.t;
   right : PointSet.t;
 }
+
+type direction = Up | Down | Left | Right
+
+let opposite_dir dir =
+  match dir with
+  | Up -> Down
+  | Down -> Up
+  | Left -> Right
+  | Right -> Left
+
+let get_neighbor dir neighbors =
+  match dir with
+  | Up -> neighbors.up
+  | Down -> neighbors.down
+  | Left -> neighbors.left
+  | Right -> neighbors.right
 
 type patterns = {
   image : bitmap;
@@ -77,8 +90,11 @@ let extract_patterns image tile_size =
       (Right, x + tile_size, y);
     ]
     |> List.filter_map (fun (d, x, y) ->
-        if x < 0 || y < 0 || x >= image.width - 3 || y >= image.height - 3 then
-          None
+        if
+          x < 0 || y < 0
+          || x >= image.width - tile_size
+          || y >= image.height - tile_size
+        then None
         else Some (d, x, y, get_area x y image tile_size))
   in
   for y = 0 to image.height - tile_size do
@@ -101,6 +117,7 @@ let generate_image patterns out_width out_height =
   let tiles = Array.init_matrix out_width out_height (fun _ _ -> Any) in
   let rand_array a = a.(Random.int (Array.length a)) in
   let collapse_point x y =
+    Printf.printf "collapsing %d %d\n" x y;
     let pos, changed =
       match tiles.(y).(x) with
       | Any -> (rand_array possibilities, true)
@@ -111,19 +128,54 @@ let generate_image patterns out_width out_height =
     changed
   in
   let get_neighbors x y =
-    [ (x, y - 1); (x, y + 1); (x - 1, y); (x + 1, y) ]
-    |> List.filter_map (fun (x, y) ->
+    [ (Up, x, y - 1); (Down, x, y + 1); (Left, x - 1, y); (Right, x + 1, y) ]
+    |> List.filter_map (fun (d, x, y) ->
         if x < 0 || y < 0 || x >= out_width || y >= out_height then None
-        else Some (x, y))
+        else Some (d, x, y))
+  in
+  let pos_in_dir d x y =
+    let pos = 
+      match tiles.(y).(x) with
+      | Constrained c -> c
+      | Collapsed c -> [| c |]
+      | Any -> possibilities
+    in
+    pos
+    |> Array.map
+        (fun pt -> get_neighbor d (Hashtbl.find patterns.patterns pt))
+    |> Array.fold_left (PointSet.union) (PointSet.empty)
+  in
+  let cell_equal_ps cell ps =
+    let c =
+      match cell with
+      | Constrained c -> c
+      | Collapsed c -> [| c |]
+      | Any -> possibilities
+    in
+    if ps = PointSet.of_list (Array.to_list c) then
+      true
+    else
+      false
   in
   let collapse_neighbors point =
-    let rec aux point =
-      let _ = point in
-      ()
+    let rec aux x y =
+      let possibilities =
+        get_neighbors x y
+        |> List.map (fun (d, x, y) -> pos_in_dir (opposite_dir d) x y)
+        |> List.fold_left PointSet.inter PointSet.empty
+      in
+      if cell_equal_ps tiles.(y).(x) possibilities then
+        false
+      else (
+        match tiles.(y).(x) with
+        | Collapsed _ -> failwith "impossible path"
+        | _ -> tiles.(y).(x) <- Constrained (Array.of_list (PointSet.to_list possibilities));
+        get_neighbors x y |> List.iter (fun (_, x, y) -> let _ = aux x y in ());
+        true)
     in
-    let _ = aux point in
-    (* TODO; I was working here :) *)
-    ()
+    let x, y = point in
+    get_neighbors x y
+    |> List.filter_map (fun (_, x, y) -> if aux x y then Some (x, y) else None)
   in
   let rec solve to_visit =
     if PointSet.is_empty to_visit then tiles
@@ -131,10 +183,9 @@ let generate_image patterns out_width out_height =
       let x, y = PointSet.choose to_visit in
       let to_visit = PointSet.remove (x, y) to_visit in
       let changed = collapse_point x y in
-      if changed then (
-        collapse_neighbors (x, y);
-        (* TODO: add neighbors to to_visit *)
-        solve to_visit)
+      if changed then
+        let neighbors = collapse_neighbors (x, y) |> List.to_seq in
+        PointSet.add_seq neighbors to_visit |> solve
       else solve to_visit
   in
   let image_of_tiles tiles =
@@ -142,8 +193,8 @@ let generate_image patterns out_width out_height =
     let height = out_height * patterns.tile_size in
     let data =
       Array.init_matrix width height (fun x y ->
-          let x1, y1 = (x / 3, y / 3) in
-          let x2, y2 = (x mod 3, y mod 3) in
+          let x1, y1 = (x / patterns.tile_size, y / patterns.tile_size) in
+          let x2, y2 = (x mod patterns.tile_size, y mod patterns.tile_size) in
           let ix, iy =
             match tiles.(y1).(x1) with
             | Collapsed p -> p
